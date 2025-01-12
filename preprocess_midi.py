@@ -1,33 +1,38 @@
 import argparse
 import os
+from pathlib import Path
 import pickle
 import json
 import random
+from typing import Union
 
 import third_party.midi_processor.processor as midi_processor
 
 JSON_FILE = "maestro-v2.0.0.json"
 
 # prep_midi
-def prep_maestro_midi(maestro_root, output_dir):
+def prep_maestro_midi(maestro_root:Union[str,Path], output_dir:Union[str,Path]):
     """
     ----------
     Author: Damon Gwinn
+    Changes : David Pardigol
     ----------
     Pre-processes the maestro dataset, putting processed midi data (train, eval, test) into the
     given output folder
     ----------
     """
+    maestro_root = Path(maestro_root)
+    output_dir = Path(output_dir)
 
-    train_dir = os.path.join(output_dir, "train")
-    os.makedirs(train_dir, exist_ok=True)
-    val_dir = os.path.join(output_dir, "val")
-    os.makedirs(val_dir, exist_ok=True)
-    test_dir = os.path.join(output_dir, "test")
-    os.makedirs(test_dir, exist_ok=True)
+    train_dir = output_dir / "train"
+    train_dir.mkdir(exist_ok=True)
+    val_dir = output_dir / "val"
+    val_dir.mkdir(exist_ok=True)
+    test_dir = output_dir / "test"
+    test_dir.mkdir(exist_ok=True)
 
-    maestro_json_file = os.path.join(maestro_root, JSON_FILE)
-    if(not os.path.isfile(maestro_json_file)):
+    maestro_json_file = maestro_root / JSON_FILE
+    if(not maestro_json_file.is_file()):
         print("ERROR: Could not find file:", maestro_json_file)
         return False
 
@@ -46,13 +51,13 @@ def prep_maestro_midi(maestro_root, output_dir):
         f_name      = mid.split("/")[-1] + ".pickle"
 
         if(split_type == "train"):
-            o_file = os.path.join(train_dir, f_name)
+            o_file = train_dir / f_name
             train_count += 1
         elif(split_type == "validation"):
-            o_file = os.path.join(val_dir, f_name)
+            o_file = val_dir / f_name
             val_count += 1
         elif(split_type == "test"):
-            o_file = os.path.join(test_dir, f_name)
+            o_file = test_dir / f_name
             test_count += 1
         else:
             print("ERROR: Unrecognized split type:", split_type)
@@ -60,9 +65,8 @@ def prep_maestro_midi(maestro_root, output_dir):
 
         prepped = midi_processor.encode_midi(mid)
 
-        o_stream = open(o_file, "wb")
-        pickle.dump(prepped, o_stream)
-        o_stream.close()
+        with open(o_file, "wb") as o_stream:
+            pickle.dump(prepped, o_stream)
 
         total_count += 1
         if(total_count % 50 == 0):
@@ -72,70 +76,6 @@ def prep_maestro_midi(maestro_root, output_dir):
     print("Num Val:", val_count)
     print("Num Test:", test_count)
     return True
-
-def prep_custom_midi(custom_midi_root, output_dir, valid_p = 0.1, test_p = 0.2):
-    """
-    ----------
-    Author: Corentin Nelias
-    ----------
-    Pre-processes custom midi files that are not part of the maestro dataset, putting processed midi data (train, eval, test) into the
-    given output folder. 
-    ----------
-    """
-    train_dir = os.path.join(output_dir, "train")
-    os.makedirs(train_dir, exist_ok=True)
-    val_dir = os.path.join(output_dir, "val")
-    os.makedirs(val_dir, exist_ok=True)
-    test_dir = os.path.join(output_dir, "test")
-    os.makedirs(test_dir, exist_ok=True)
-    
-    print("Found", len(os.listdir(custom_midi_root)), "pieces")
-    print("Preprocessing custom data...")
-    total_count = 0
-    train_count = 0
-    val_count   = 0
-    test_count  = 0
-    
-    for piece in os.listdir(custom_midi_root):
-        #deciding whether the data should be part of train, valid or test dataset
-        is_train = True if random.random() > valid_p else False
-        if not is_train:
-            is_valid = True if random.random() > test_p else False
-        if is_train:
-            split_type  = "train"
-        elif is_valid:
-            split_type = "validation"
-        else:
-            split_type = "test"
-            
-        mid         = os.path.join(custom_midi_root, piece)
-        f_name      = piece.split(".")[0] + ".pickle"
-
-        if(split_type == "train"):
-            o_file = os.path.join(train_dir, f_name)
-            train_count += 1
-        elif(split_type == "validation"):
-            o_file = os.path.join(val_dir, f_name)
-            val_count += 1
-        elif(split_type == "test"):
-            o_file = os.path.join(test_dir, f_name)
-            test_count += 1
-        
-        prepped = midi_processor.encode_midi(mid)
-
-        o_stream = open(o_file, "wb")
-        pickle.dump(prepped, o_stream)
-        o_stream.close()
-
-        total_count += 1
-        if(total_count % 50 == 0):
-            print(total_count, "/", len(os.listdir(custom_midi_root)))
-
-    print("Num Train:", train_count)
-    print("Num Val:", val_count)
-    print("Num Test:", test_count)
-    return True
-
 
 # parse_args
 def parse_args():
@@ -151,8 +91,6 @@ def parse_args():
 
     parser.add_argument("root", type=str, help="Root folder for the Maestro dataset or for custom data.")
     parser.add_argument("-output_dir", type=str, default="./dataset/e_piano", help="Output folder to put the preprocessed midi into.")
-    parser.add_argument("--custom_dataset", action="store_true", help="Whether or not the specified root folder contains custom data.")
-
     return parser.parse_args()
 
 # main
@@ -170,10 +108,9 @@ def main():
     output_dir      = args.output_dir
 
     print("Preprocessing midi files and saving to", output_dir)
-    if args.custom_dataset:
-        prep_custom_midi(root, output_dir)
-    else:
-        prep_maestro_midi(root, output_dir)
+
+    prep_maestro_midi(root, output_dir)
+    
     print("Done!")
     print("")
 
