@@ -1,6 +1,8 @@
 import os
 import pickle
+from pathlib import Path
 import random
+from typing import Union
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
@@ -24,13 +26,13 @@ class EPianoDataset(Dataset):
     ----------
     """
 
-    def __init__(self, root, max_seq=2048, random_seq=True):
+    def __init__(self, root:Path, max_seq=2048, random_seq=True):
         self.root       = root
         self.max_seq    = max_seq
         self.random_seq = random_seq
 
-        fs = [os.path.join(root, f) for f in os.listdir(self.root)]
-        self.data_files = [f for f in fs if os.path.isfile(f)]
+        fs = [self.root / f for f in self.root.iterdir()]
+        self.data_files = [f for f in fs if f.is_file()]
 
     # __len__
     def __len__(self):
@@ -57,10 +59,9 @@ class EPianoDataset(Dataset):
         """
 
         # All data on cpu to allow for the Dataloader to multithread
-        i_stream    = open(self.data_files[idx], "rb")
-        # return pickle.load(i_stream), None
-        raw_mid     = torch.tensor(pickle.load(i_stream), dtype=TORCH_LABEL_TYPE, device=cpu_device())
-        i_stream.close()
+        with open(self.data_files[idx], "rb") as i_stream:
+            # return pickle.load(i_stream), None
+            raw_mid     = torch.tensor(pickle.load(i_stream), dtype=TORCH_LABEL_TYPE, device=cpu_device())
 
         x, tgt = process_midi(raw_mid, self.max_seq, self.random_seq)
 
@@ -81,7 +82,7 @@ def process_midi(raw_mid, max_seq, random_seq):
     tgt = torch.full((max_seq, ), TOKEN_PAD, dtype=TORCH_LABEL_TYPE, device=cpu_device())
 
     raw_len     = len(raw_mid)
-    full_seq    = max_seq + 1 # Performing seq2seq
+    full_seq    = max_seq + 1 # Performing seq2seq #max_seq=2048 default value
 
     if(raw_len == 0):
         return x, tgt
@@ -115,7 +116,7 @@ def process_midi(raw_mid, max_seq, random_seq):
 
 
 # create_epiano_datasets
-def create_epiano_datasets(dataset_root, max_seq, random_seq=True):
+def create_epiano_datasets(dataset_root:Union[str,Path], max_seq, random_seq=True):
     """
     ----------
     Author: Damon Gwinn
@@ -124,10 +125,11 @@ def create_epiano_datasets(dataset_root, max_seq, random_seq=True):
     root containing train, val, and test folders.
     ----------
     """
+    dataset_root = Path(dataset_root)
 
-    train_root = os.path.join(dataset_root, "train")
-    val_root = os.path.join(dataset_root, "val")
-    test_root = os.path.join(dataset_root, "test")
+    train_root = dataset_root / "train"
+    val_root = dataset_root / "val"
+    test_root = dataset_root / "test"
 
     train_dataset = EPianoDataset(train_root, max_seq, random_seq)
     val_dataset = EPianoDataset(val_root, max_seq, random_seq)

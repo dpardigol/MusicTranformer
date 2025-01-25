@@ -43,7 +43,8 @@ class MusicTransformer(nn.Module):
         self.rpr        = rpr
 
         # Input embedding
-        self.embedding = nn.Embedding(VOCAB_SIZE, self.d_model)
+        self.embedding = nn.Embedding(VOCAB_SIZE, self.d_model) 
+        #VOCAB_SIZE = 390 = 2 + RANGE_NOTE_ON (128) + RANGE_NOTE_OFF(128)+ RANGE_VEL (32) + RANGE_TIME_SHIFT (100)
 
         # Positional encoding
         self.positional_encoding = PositionalEncoding(self.d_model, self.dropout, self.max_seq)

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import csv
 import shutil
 import torch
@@ -37,26 +38,27 @@ def main():
     print_train_args(args)
 
     if(args.force_cpu):
-        use_cuda(False)
+        #use_cuda(False)
+        device=torch.device("cpu")
         print("WARNING: Forced CPU usage, expect model to perform slower")
         print("")
-
-    os.makedirs(args.output_dir, exist_ok=True)
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(exist_ok=True)
 
     ##### Output prep #####
-    params_file = os.path.join(args.output_dir, "model_params.txt")
+    params_file = output_dir / "model_params.txt"
     write_model_params(args, params_file)
 
-    weights_folder = os.path.join(args.output_dir, "weights")
-    os.makedirs(weights_folder, exist_ok=True)
+    weights_folder = output_dir / "weights"
+    weights_folder.mkdir(exist_ok=True)
 
-    results_folder = os.path.join(args.output_dir, "results")
-    os.makedirs(results_folder, exist_ok=True)
+    results_folder = output_dir / "results"
+    results_folder.mkdir(exist_ok=True)
 
-    results_file = os.path.join(results_folder, "results.csv")
-    best_loss_file = os.path.join(results_folder, "best_loss_weights.pickle")
-    best_acc_file = os.path.join(results_folder, "best_acc_weights.pickle")
-    best_text = os.path.join(results_folder, "best_epochs.txt")
+    results_file = results_folder / "results.csv"
+    best_loss_file = results_folder / "best_loss_weights.pickle"
+    best_acc_file = results_folder / "best_acc_weights.pickle"
+    best_text = results_folder / "best_epochs.txt"
 
     ##### Tensorboard #####
     if(args.no_tensorboard):
@@ -68,18 +70,24 @@ def main():
         tensorboard_summary = SummaryWriter(log_dir=tensorboad_dir)
 
     ##### Datasets #####
-    train_dataset, val_dataset, test_dataset = create_epiano_datasets(args.input_dir, args.max_sequence)
+    input_dir = Path(args.input_dir)
+
+    #Each torch dataset contains tuples : dim(sequence, sequence shifted by one)=(max_sequence,max_sequence)
+    #Last element of training set :
+    #  (tensor([365,  32, 261,  ..., 257, 174, 370]), tensor([ 32, 261, 380,  ..., 174, 370,  46]))
+    train_dataset, _, test_dataset = create_epiano_datasets(input_dir, args.max_sequence)
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.n_workers, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=args.n_workers)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=args.n_workers)
+    
+    X_test, y_test = next(iter(train_loader))
 
     model = MusicTransformer(n_layers=args.n_layers, num_heads=args.num_heads,
                 d_model=args.d_model, dim_feedforward=args.dim_feedforward, dropout=args.dropout,
-                max_sequence=args.max_sequence, rpr=args.rpr).to(get_device())
+                max_sequence=args.max_sequence, rpr=args.rpr).to(device)
 
     ##### Continuing from previous training session #####
-    start_epoch = BASELINE_EPOCH
+    start_epoch = BASELINE_EPOCH # BASELINE_EPOCH = -1
     if(args.continue_weights is not None):
         if(args.continue_epoch is None):
             print("ERROR: Need epoch number to continue from (-continue_epoch) when using continue_weights")
@@ -127,7 +135,7 @@ def main():
     best_eval_loss_epoch = -1
 
     ##### Results reporting #####
-    if(not os.path.isfile(results_file)):
+    if(not results_file.is_file()):
         with open(results_file, "w", newline="") as o_stream:
             writer = csv.writer(o_stream)
             writer.writerow(CSV_HEADER)
@@ -152,8 +160,16 @@ def main():
             print("Baseline model evaluation (Epoch 0):")
 
         # Eval
+        print("Computing train loss and train accuracy...")
+        print("")
         train_loss, train_acc = eval_model(model, train_loader, train_loss_func)
+        print("Train loss and train accuracy finished !")
+        print("")
+        print("Computing eval loss and eval accuracy...")
+        print("")
         eval_loss, eval_acc = eval_model(model, test_loader, eval_loss_func)
+        print("Eval loss and eval accuracy finished !")
+        print("")
 
         # Learn rate
         lr = get_lr(opt)

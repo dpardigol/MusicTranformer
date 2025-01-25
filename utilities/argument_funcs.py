@@ -212,17 +212,15 @@ def write_model_params(args, output_file):
     ----------
     """
 
-    o_stream = open(output_file, "w")
+    with open(output_file, "w") as o_stream:
 
-    o_stream.write("rpr: " + str(args.rpr) + "\n")
-    o_stream.write("lr: " + str(args.lr) + "\n")
-    o_stream.write("ce_smoothing: " + str(args.ce_smoothing) + "\n")
-    o_stream.write("batch_size: " + str(args.batch_size) + "\n")
-    o_stream.write("max_sequence: " + str(args.max_sequence) + "\n")
-    o_stream.write("n_layers: " + str(args.n_layers) + "\n")
-    o_stream.write("num_heads: " + str(args.num_heads) + "\n")
-    o_stream.write("d_model: " + str(args.d_model) + "\n")
-    o_stream.write("dim_feedforward: " + str(args.dim_feedforward) + "\n")
-    o_stream.write("dropout: " + str(args.dropout) + "\n")
-
-    o_stream.close()
+        o_stream.write("rpr: " + str(args.rpr) + "\n")
+        o_stream.write("lr: " + str(args.lr) + "\n")
+        o_stream.write("ce_smoothing: " + str(args.ce_smoothing) + "\n")
+        o_stream.write("batch_size: " + str(args.batch_size) + "\n")
+        o_stream.write("max_sequence: " + str(args.max_sequence) + "\n")
+        o_stream.write("n_layers: " + str(args.n_layers) + "\n")
+        o_stream.write("num_heads: " + str(args.num_heads) + "\n")
+        o_stream.write("d_model: " + str(args.d_model) + "\n")
+        o_stream.write("dim_feedforward: " + str(args.dim_feedforward) + "\n")
+        o_stream.write("dropout: " + str(args.dropout) + "\n")

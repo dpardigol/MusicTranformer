@@ -20,6 +20,8 @@ def train_epoch(cur_epoch, model, dataloader, loss, opt, lr_scheduler=None, prin
 
     out = -1
     model.train()
+    # Every call to the dataset iterator will return batch of images of size batch_size. 
+    # Hence you will have batch_size batches until you exhaust all the len(dataloader) images.
     for batch_num, batch in enumerate(dataloader):
         time_before = time.time()
 
