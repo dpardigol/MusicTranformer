@@ -24,6 +24,7 @@ def prep_maestro_midi(maestro_root:Union[str,Path], output_dir:Union[str,Path]):
     maestro_root = Path(maestro_root)
     output_dir = Path(output_dir)
 
+    output_dir.mkdir(exist_ok=True)
     train_dir = output_dir / "train"
     train_dir.mkdir(exist_ok=True)
     val_dir = output_dir / "val"

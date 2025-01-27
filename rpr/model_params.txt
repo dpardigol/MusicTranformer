@@ -1,4 +1,4 @@
-rpr: True
+rpr: False
 lr: None
 ce_smoothing: None
 batch_size: 2

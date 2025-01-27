@@ -9,6 +9,14 @@ from utilities.device import get_device
 from .positional_encoding import PositionalEncoding
 from .rpr import TransformerEncoderRPR, TransformerEncoderLayerRPR
 
+import logging
+
+# Configure logging
+logging.basicConfig(
+    filename='transformer.log',  # Path to your log file
+    level=logging.DEBUG,           # Set the logging level
+    format='%(asctime)s - %(levelname)s - %(message)s'  # Log message format
+)
 
 # MusicTransformer
 class MusicTransformer(nn.Module):
@@ -45,7 +53,6 @@ class MusicTransformer(nn.Module):
         # Input embedding
         self.embedding = nn.Embedding(VOCAB_SIZE, self.d_model) 
         #VOCAB_SIZE = 390 = 2 + RANGE_NOTE_ON (128) + RANGE_NOTE_OFF(128)+ RANGE_VEL (32) + RANGE_TIME_SHIFT (100)
-
         # Positional encoding
         self.positional_encoding = PositionalEncoding(self.d_model, self.dropout, self.max_seq)
 
@@ -54,9 +61,13 @@ class MusicTransformer(nn.Module):
             # To make a decoder-only transformer we need to use masked encoder layers
             # Dummy decoder to essentially just return the encoder output
             self.transformer = nn.Transformer(
-                d_model=self.d_model, nhead=self.nhead, num_encoder_layers=self.nlayers,
-                num_decoder_layers=0, dropout=self.dropout, # activation=self.ff_activ,
-                dim_feedforward=self.d_ff, custom_decoder=self.dummy
+                d_model=self.d_model, 
+                nhead=self.nhead, 
+                num_encoder_layers=self.nlayers,
+                num_decoder_layers=0,
+                dropout=self.dropout,
+                dim_feedforward=self.d_ff,
+                custom_decoder=self.dummy
             )
         # RPR Transformer
         else:
@@ -84,6 +95,7 @@ class MusicTransformer(nn.Module):
         A prediction at one index is the "next" prediction given all information seen previously.
         ----------
         """
+        logging.debug(f'x : {x.shape}')
 
         if(mask is True):
             mask = self.transformer.generate_square_subsequent_mask(x.shape[1]).to(get_device())
@@ -92,10 +104,16 @@ class MusicTransformer(nn.Module):
 
         x = self.embedding(x)
 
+        logging.debug(f'embedding is : {x.shape}')
+
         # Input shape is (max_seq, batch_size, d_model)
         x = x.permute(1,0,2)
 
+        logging.debug(f'permuted embedding is : {x.shape}')
+
         x = self.positional_encoding(x)
+
+        logging.debug(f'positional_encoding is : {x.shape}')
 
         # Since there are no true decoder layers, the tgt is unused
         # Pytorch wants src and tgt to have some equal dims however
@@ -104,8 +122,13 @@ class MusicTransformer(nn.Module):
         # Back to (batch_size, max_seq, d_model)
         x_out = x_out.permute(1,0,2)
 
+        logging.debug(f'x_out is : {x_out.shape}')
+
         y = self.Wout(x_out)
         # y = self.softmax(y)
+
+        logging.debug(f'y is : {y.shape}')
+        
 
         del mask
 
@@ -125,20 +148,24 @@ class MusicTransformer(nn.Module):
 
         assert (not self.training), "Cannot generate while in training mode"
 
-        print("Generating sequence of max length:", target_seq_length)
+        logging.debug("Generating sequence of max length:", target_seq_length)
 
         gen_seq = torch.full((1,target_seq_length), TOKEN_PAD, dtype=TORCH_LABEL_TYPE, device=get_device())
-
+        logging.debug(f'primer is : {primer.shape}')
         num_primer = len(primer)
         gen_seq[..., :num_primer] = primer.type(TORCH_LABEL_TYPE).to(get_device())
+        logging.debug(f'gen_seq is : {gen_seq.shape}')
 
 
-        # print("primer:",primer)
-        # print(gen_seq)
+        # logging.debug("primer:",primer)
+        # logging.debug(gen_seq)
         cur_i = num_primer
         while(cur_i < target_seq_length):
+            logging.debug(f'cur_i is : {cur_i}')
             # gen_seq_batch     = gen_seq.clone()
             y = self.softmax(self.forward(gen_seq[..., :cur_i]))[..., :TOKEN_END]
+            logging.debug(f'y is : {y.shape}')
+
             token_probs = y[:, cur_i-1, :]
 
             if(beam == 0):
@@ -159,18 +186,18 @@ class MusicTransformer(nn.Module):
             else:
                 distrib = torch.distributions.categorical.Categorical(probs=token_probs)
                 next_token = distrib.sample()
-                # print("next token:",next_token)
+                # logging.debug("next token:",next_token)
                 gen_seq[:, cur_i] = next_token
 
 
                 # Let the transformer decide to end if it wants to
                 if(next_token == TOKEN_END):
-                    print("Model called end of sequence at:", cur_i, "/", target_seq_length)
+                    logging.debug("Model called end of sequence at:", cur_i, "/", target_seq_length)
                     break
 
             cur_i += 1
             if(cur_i % 50 == 0):
-                print(cur_i, "/", target_seq_length)
+                logging.debug(cur_i, "/", target_seq_length)
 
         return gen_seq[:, :cur_i]
 

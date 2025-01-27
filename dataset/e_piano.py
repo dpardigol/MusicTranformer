@@ -27,12 +27,13 @@ class EPianoDataset(Dataset):
     """
 
     def __init__(self, root:Path, max_seq=2048, random_seq=True):
+
         self.root       = root
         self.max_seq    = max_seq
         self.random_seq = random_seq
 
-        fs = [self.root / f for f in self.root.iterdir()]
-        self.data_files = [f for f in fs if f.is_file()]
+        fs = [os.path.join(root, f) for f in os.listdir(self.root)]
+        self.data_files = [f for f in fs if os.path.isfile(f)]
 
     # __len__
     def __len__(self):

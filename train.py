@@ -37,11 +37,8 @@ def main():
     args = parse_train_args()
     print_train_args(args)
 
-    if(args.force_cpu):
-        #use_cuda(False)
-        device=torch.device("cpu")
-        print("WARNING: Forced CPU usage, expect model to perform slower")
-        print("")
+    device=torch.device("cpu")
+
     output_dir = Path(args.output_dir)
     output_dir.mkdir(exist_ok=True)
 

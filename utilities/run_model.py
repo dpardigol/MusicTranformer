@@ -1,5 +1,6 @@
 import torch
 import time
+import itertools
 
 from .constants import *
 from utilities.device import get_device
@@ -22,7 +23,7 @@ def train_epoch(cur_epoch, model, dataloader, loss, opt, lr_scheduler=None, prin
     model.train()
     # Every call to the dataset iterator will return batch of images of size batch_size. 
     # Hence you will have batch_size batches until you exhaust all the len(dataloader) images.
-    for batch_num, batch in enumerate(dataloader):
+    for batch_num, batch in enumerate(itertools.islice(dataloader, NUM_EXAMPLES)):
         time_before = time.time()
 
         opt.zero_grad()
@@ -60,13 +61,6 @@ def train_epoch(cur_epoch, model, dataloader, loss, opt, lr_scheduler=None, prin
 
 # eval_model
 def eval_model(model, dataloader, loss):
-    """
-    ----------
-    Author: Damon Gwinn
-    ----------
-    Evaluates the model and prints the average loss and accuracy
-    ----------
-    """
 
     model.eval()
 
@@ -76,10 +70,9 @@ def eval_model(model, dataloader, loss):
         n_test      = len(dataloader)
         sum_loss   = 0.0
         sum_acc    = 0.0
-        for batch in dataloader:
+        for batch in itertools.islice(dataloader, NUM_EXAMPLES): 
             x   = batch[0].to(get_device())
             tgt = batch[1].to(get_device())
-
             y = model(x)
 
             sum_acc += float(compute_epiano_accuracy(y, tgt))
